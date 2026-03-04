@@ -6,7 +6,11 @@ import hydra
 from loguru import logger
 import dotenv
 from zotero_arxiv_daily.executor import Executor
+
+# 禁用 tokenizers 的并行处理
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+# 加载 .env 文件中的环境变量
 dotenv.load_dotenv()
 
 # ===== 在 Hydra 之前打印调试信息 =====
@@ -18,7 +22,6 @@ print(f"Script directory: {os.path.dirname(os.path.abspath(__file__))}")
 
 # 检查配置文件
 config_locations = [
-    # 绝对路径构建
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../../config/default.yaml")),
     os.path.abspath("config/default.yaml"),
     os.path.abspath("../../config/default.yaml"),
@@ -35,7 +38,7 @@ for i, path in enumerate(config_locations):
             print(f"  File size: {os.path.getsize(path)} bytes")
             with open(path, 'r') as f:
                 content = f.read()
-                print(f"  Content preview: {content[:200]}...")
+                print(f"  Content preview: {content[:200]}...")  # Preview the first 200 characters
         except Exception as e:
             print(f"  Error reading: {e}")
 
@@ -58,24 +61,35 @@ print("=" * 60)
 # ===== 调试信息结束 =====
 
 @hydra.main(version_base=None, config_path="../../config", config_name="default")
-def main(config:DictConfig):
+def main(config: DictConfig):
+    # 调试打印配置信息
+    print(f"Debug mode: {config.executor.debug}")
+    print(f"Executor source: {config.executor.source}")
+    
     # Configure loguru log level based on config
     log_level = "DEBUG" if config.executor.debug else "INFO"
-    logger.remove()  # Remove default handler
+    logger.remove()  # 移除默认的日志处理器
     logger.add(
         sys.stdout,
         level=log_level,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
     )
-    
+
+    # 设置其它日志器的级别
     for logger_name in logging.root.manager.loggerDict:
         if "zotero_arxiv_daily" in logger_name:
             continue
         logging.getLogger(logger_name).setLevel(logging.WARNING)
 
+    # 如果启用了调试模式，则输出调试信息
     if config.executor.debug:
         logger.info("Debug mode is enabled")
     
+    # 确保 executor.source 被正确加载
+    source = config.executor.get("source", ["arxiv"])  # 设置默认值为 ['arxiv']
+    logger.info(f"Executor source: {source}")
+    
+    # 初始化 Executor 对象并运行
     executor = Executor(config)
     executor.run()
 
