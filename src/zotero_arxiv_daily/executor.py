@@ -12,7 +12,6 @@ from .utils import send_email
 from openai import OpenAI
 from tqdm import tqdm
 class Executor:
-    executor_source = config.executor.get("source", ["arxiv"])
     def __init__(self, config:DictConfig):
         self.config = config
         self.retrievers = {
